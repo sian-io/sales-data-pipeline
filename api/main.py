@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from datetime import date, time
 import random
 
+# Define possible product categories and order statuses
 categories = ['Electronics', 'Clothing', 'Tools', 'Food', 'Toys']
 statuses = ['Pending', 'Shipped', 'Delivered', 'Cancelled']
 
@@ -12,10 +13,10 @@ def get_data():
 
     data = []
 
-    # today's date
+    # Get today's date
     today = date.today().isoformat()
 
-    # random ammount of records
+    # Random amount of records
     num_records = random.randint(1000, 5000)
     for _ in range(num_records):
 
@@ -30,13 +31,14 @@ def get_data():
             second=random.randint(0, 59)
         ).isoformat()
 
-        # rng seeded on product_id for consistent prices and categories
+        # Rng seeded on product_id for consistent prices and categories
         product_rng = random.Random(product_id)
 
-        # product-consistent random data
+        # Product-consistent random data
         category = product_rng.choice(categories)
         price = round(product_rng.uniform(19.99, 1499.99), 2)
 
+        # Create record
         record = {
             'seller_id': seller_id,
             'product_id': product_id,
@@ -47,6 +49,7 @@ def get_data():
             'date': today,
             'time': purchase_time
         }
+        # Append to data
         data.append(record)
 
     return data
