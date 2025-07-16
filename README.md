@@ -50,7 +50,7 @@ All components are orchestrated using Docker Compose, which automatically builds
    ```
 
 2. **Start the pipeline**
-   Run in the project's root:
+   (run in the project root):
    ```sh
    docker compose up
    ```
@@ -65,18 +65,19 @@ All components are orchestrated using Docker Compose, which automatically builds
       airflow   | Simple auth manager | Password for user 'admin': <generated-password>
       ```
    - After building and running the Airflow container for the first time, the password will not be printed again; instead, it will be saved in the container's `opt/airflow/simple_auth_manager_passwords.json.generated` directory.
-   - **Resetting the password:**
-      - To reset the Airflow admin password, you can remove the persistent Docker volumes and restart the pipeline. This will recreate the Airflow metadata and generate a new password.
-      - Run the following command in your project root:
+
+- **Resetting the password:**
+   - To reset the Airflow admin password, you can remove the persistent Docker volumes and restart the pipeline. This will recreate the Airflow metadata and generate a new password.
+   - Run the following command in your project root:
+   ```sh
+   docker compose down -v
+   ```
+   - This will delete all persistent data (including Airflow and PostgreSQL data).
+   - Now rebuild the containers to restore the environment:
       ```sh
-      docker compose down -v
+      docker compose up
       ```
-      - This will delete all persistent data (including Airflow and PostgreSQL data).
-      - Now rebuild the containers to restore the environment:
-        ```sh
-        docker compose up
-        ```
-      - Alternatively, you can manually delete the password file inside the Airflow container and restart it to force a new password to be generated.
+   - Alternatively, you can manually delete the password file inside the Airflow container and restart it to force a new password to be generated.
 
 ## Airflow DAG Details
 
