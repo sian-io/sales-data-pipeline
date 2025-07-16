@@ -1,0 +1,112 @@
+# Sales Data Pipeline
+
+This project is a complete data pipeline for simulating, processing, and storing sales data using modern open-source tools. It leverages FastAPI for data generation, Apache Airflow for orchestration, PostgreSQL for storage, and pandas for data transformation.
+
+## Architecture Overview
+
+- **Docker & Docker Compose**: All services (API, Airflow, PostgreSQL) run in isolated containers managed by Docker Compose. This ensures easy setup, reproducibility, and consistent environments for development and testing.
+- **FastAPI** (`api`): Generates synthetic sales data via an HTTP endpoint (`/data`).
+- **PostgreSQL** (`postgres`): Stores the processed sales data in a dedicated schema and table.
+- **Apache Airflow** (`airflow`): Orchestrates the ETL pipeline, extracting data from the API, transforming it with pandas, and loading it into PostgreSQL.
+
+## How It Works
+
+All components are orchestrated using Docker Compose, which automatically builds and starts each service in its own container. This means you can start the entire pipeline with a single command, and all dependencies and network connections are handled for you.
+
+1. **Data Generation**: The FastAPI service simulates sales records for the last hour, returning a list of dictionaries with fields like seller, product, category, quantity, price, status, date, and time.
+2. **ETL Pipeline**: Airflow runs an hourly DAG (`etl_sales_pipeline`) with three steps:
+   - **Extract**: Fetches data from the API and saves it as a JSON file.
+   - **Transform**: Loads the JSON into pandas, filters out cancelled orders, calculates revenue, combines date and time into a timestamp, and saves the result as a Parquet file.
+   - **Load**: Reads the Parquet file and inserts the processed data into the `treated.sales` table in PostgreSQL.
+3. **Database**: PostgreSQL stores the final, treated sales data for further analysis.
+
+## Project Structure
+
+```
+├── airflow
+│   ├── dags
+│   │   └── etl_dag.py
+│   └── Dockerfile
+├── api
+│   ├── Dockerfile
+│   └── main.py
+├── db_init
+│   └── init.sql
+├── docker-compose.yaml
+├── LICENSE
+└── README.md
+```
+
+## Prerequisites
+
+- Docker
+- Docker Compose
+
+## Quick Start
+
+1. **Clone the repository**
+   ```sh
+   git clone https://github.com/sian-io/sales-data-pipeline.git
+   ```
+
+2. **Start the pipeline**
+   (run in the project root):
+   ```sh
+   docker compose up
+   ```
+
+3. **Access the services**
+   - **Airflow Web UI**: [http://localhost:8080](http://localhost:8080)
+   - **FastAPI Endpoint**: [http://localhost:8000/data](http://localhost:8000/data)
+   - **PostgreSQL**: Host: `localhost`, port: `5432`, user: `admin`, password: `admin`, database: `pipeline_db`
+
+   - **Airflow Login:** The default username is `admin`. The password is automatically generated and printed in the Airflow container logs when the service starts. Check the terminal output for this line:
+      ```
+      airflow   | Simple auth manager | Password for user 'admin': <generated-password>
+      ```
+   - After building and running the Airflow container for the first time, the password will not be printed again; instead, it will be saved in the container's `opt/airflow/simple_auth_manager_passwords.json.generated` directory.
+
+- **Resetting the password:**
+   - To reset the Airflow admin password, you can remove the persistent Docker volumes and restart the pipeline. This will recreate the Airflow metadata and generate a new password.
+   - Run the following command in your project root:
+   ```sh
+   docker compose down -v
+   ```
+   - This will delete all persistent data (including Airflow and PostgreSQL data).
+   - Now rebuild the containers to restore the environment:
+      ```sh
+      docker compose up
+      ```
+   - Alternatively, you can manually delete the password file inside the Airflow container and restart it to force a new password to be generated.
+
+## Airflow DAG Details
+
+- **DAG ID**: `etl_sales_pipeline`
+- **Schedule**: Hourly
+- **Triggers**: The DAG is unpaused upon creation, so it will automatically start running as soon as it is parsed by Airflow. No manual activation is needed.
+- **Tasks**:
+  - `extract_data`: Fetches raw sales data from the API
+  - `transform_data`: Cleans and transforms the data with pandas
+  - `load_data`: Loads the processed data into PostgreSQL
+
+## Database Schema
+
+The table `treated.sales` is created automatically and has the following columns:
+
+- `id` (SERIAL PRIMARY KEY)
+- `seller_id` (INTEGER)
+- `product_id` (INTEGER)
+- `category` (TEXT)
+- `quantity` (INTEGER)
+- `price` (NUMERIC)
+- `status` (TEXT)
+- `revenue` (NUMERIC)
+- `datetime` (TIMESTAMP)
+
+**Note:** Airflow's internal metadata tables are stored in the `public` schema of the PostgreSQL database. Your processed sales data is stored separately in the `treated` schema.
+
+## Customization
+
+- To change the data generation logic, edit `api/main.py`.
+- To modify the ETL pipeline, edit `airflow/dags/etl_dag.py`.
+- To adjust the database schema, edit `db_init/init.sql`.
