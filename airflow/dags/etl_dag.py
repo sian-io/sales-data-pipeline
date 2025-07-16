@@ -46,6 +46,9 @@ def transform_data():
     # Original 'date' and 'time' columns are no longer needed
     df = df.drop(columns=['date', 'time'])
 
+    # Sort by datetime for consistency with auto-incremental id column
+    df = df.sort_values(by='datetime')
+
     df.to_parquet('/tmp/sales_data_processed')
 
 
@@ -64,7 +67,7 @@ def load_data():
 with DAG(
     dag_id='etl_sales_pipeline',
     default_args=default_args,
-    schedule='@hourly',
+    schedule='*/10 * * * *',  # every 10 minutes
     is_paused_upon_creation=False,
     catchup=False,
     tags=['etl', 'pandas', 'postgres']
