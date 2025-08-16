@@ -51,6 +51,18 @@ services:
         api:
             condition: service_started
 
+  dashboard:
+    build:
+      context: ./dashboard
+    container_name: dashboard
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - etl_net
+
 volumes:
   pgdata:
 
