@@ -36,6 +36,5 @@ while True:
         st.line_chart(df.sort_values('datetime').set_index('datetime')['revenue'])
 
         st.subheader('Recent Sales')
-        st.dataframe(df)
 
     time.sleep(refresh_interval)
