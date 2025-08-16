@@ -8,6 +8,7 @@ This project is a complete data pipeline for simulating, processing, and storing
 - **FastAPI** (`api`): Generates synthetic sales data via an HTTP endpoint (`/data`).
 - **PostgreSQL** (`postgres`): Stores the processed sales data in a dedicated schema and table.
 - **Apache Airflow** (`airflow`): Orchestrates the ETL pipeline, extracting data from the API, transforming it with pandas, and loading it into PostgreSQL.
+- **Streamlit Dashboard** (`dashboard`): Visualizes the processed sales data from PostgreSQL in real time, displaying KPIs like total revenue, average ticket, order count, and a revenue-by-category chart.
 
 ## How It Works
 
@@ -37,6 +38,10 @@ All components are orchestrated using Docker Compose, which automatically builds
 ├── api
 │   ├── Dockerfile
 │   └── main.py
+├── dashboard
+│   ├── Dockerfile
+│   ├── app.py
+│   └── requirements.txt
 ├── db_init
 │   └── init.sql
 ├── docker-compose.yaml
@@ -66,6 +71,7 @@ All components are orchestrated using Docker Compose, which automatically builds
    - **Airflow Web UI**: [http://localhost:8080](http://localhost:8080)
    - **FastAPI Endpoint**: [http://localhost:8000/data](http://localhost:8000/data)
    - **PostgreSQL**: Host: `localhost`, port: `5432`, user: `admin`, password: `admin`, database: `pipeline_db`
+   - **Streamlit Dashboard**: [http://localhost:8501](http://localhost:8501)
 
    - **Airflow Login:** The default username is `admin`. The password is automatically generated and printed in the Airflow container logs when the service starts. Check the terminal output for this line (which should be one of the first lines from the airflow service):
       ```
