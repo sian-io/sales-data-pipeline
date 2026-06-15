@@ -13,23 +13,29 @@ def get_data():
 
     data = []
 
-    # Define date and time from last hour (UTC when running in Docker)
-    last_hour_timestamp = datetime.now() - timedelta(hours=1)
-    last_hour_day = last_hour_timestamp.strftime('%Y-%m-%d')
-    last_hour_hour = last_hour_timestamp.hour
+    # Define date and time from yesterday
+    yesterday = (
+        datetime.now().replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        ) - timedelta(days=1)
+    )
 
-    num_records = random.randint(1000, 5000)
+    num_records = random.randint(10000, 100000)
     for _ in range(num_records):
 
         seller_id = random.randint(1, 50)
         product_id = random.randint(1, 100)
         quantity = random.randint(1, 10)
         status = random.choice(statuses)
-        purchase_time = time(
-            hour=last_hour_hour,
-            minute=random.randint(0, 59),
-            second=random.randint(0, 59)
-        ).isoformat()
+
+        # Generate a random purchase time within the day
+        seconds = random.randint(0, 86399)
+        purchase_dt = yesterday + timedelta(seconds=seconds)
+        purchase_date = purchase_dt.strftime('%Y-%m-%d')
+        purchase_time = purchase_dt.strftime('%H:%M:%S')
 
         # Rng seeded on product_id for consistent prices and categories
         product_rng = random.Random(product_id)
@@ -44,7 +50,7 @@ def get_data():
             'quantity': quantity,
             'price': price,
             'status': status,
-            'date': last_hour_day,
+            'date': purchase_date,
             'time': purchase_time
         }
 

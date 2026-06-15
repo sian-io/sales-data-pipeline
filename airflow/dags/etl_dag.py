@@ -64,7 +64,7 @@ def load_data():
 with DAG(
     dag_id='etl_sales_pipeline',
     default_args=default_args,
-    schedule='@hourly',
+    schedule='@daily', # == '0 0 * * *' == every day at midnight
     is_paused_upon_creation=False,
     catchup=False,
     tags=['etl', 'pandas', 'postgres']
