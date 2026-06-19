@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import json
 from unittest.mock import patch, MagicMock
-from airflow.dags.etl_dag import (
+from pipeline.tasks import (
     extract_data, 
     transform_data, 
     load_data, 
@@ -39,7 +39,6 @@ def mock_raw_json_data():
 @patch('requests.get')
 def test_extract_data_saves_json(mock_get, tmp_path):
     """Validates that extract_data successfully handles REST API payloads and writes a physical file."""
-    # Mock response from the REST API endpoint
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = [{"item": "data"}]
@@ -49,10 +48,8 @@ def test_extract_data_saves_json(mock_get, tmp_path):
 
     extract_data(url="http://fake-api/data", output_path=str(fake_output_file))
 
-    # Assert requests library called the correct endpoint
     mock_get.assert_called_once_with("http://fake-api/data")
     
-    # Assert physical write occurred with correct data
     with open(fake_output_file, 'r') as f:
         written_data = json.load(f)
     assert written_data == [{"item": "data"}]
@@ -62,11 +59,9 @@ def test_extract_data_saves_json(mock_get, tmp_path):
 
 def test_transform_data_logic(mock_raw_json_data, tmp_path):
     """Validates entire Pandas vector mathematics, cleanings, and sorting logic."""
-    # Create safe temporary inputs and output targets
     fake_input_file = tmp_path / "sales_data_raw.json"
     fake_output_dir = tmp_path / "sales_data_processed"
 
-    # Write raw mock payload into the physical sandbox
     with open(fake_input_file, 'w') as f:
         json.dump(mock_raw_json_data, f)
 
@@ -74,18 +69,14 @@ def test_transform_data_logic(mock_raw_json_data, tmp_path):
 
     processed_df = pd.read_parquet(fake_output_dir)
 
-    # 1. Validate that 'Cancelled' orders are dropped
     assert 'Cancelled' not in processed_df['status'].values
     assert len(processed_df) == 2  # Out of 3 initial records, 1 was dropped
 
-    # 2. Validate chronological sorting (ID 3 at 09:15 must come BEFORE ID 1 at 10:30)
     assert processed_df.iloc[0]['seller_id'] == 3
     
-    # 3. Validate math logic for Revenue
     assert processed_df.loc[processed_df['seller_id'] == 1, 'revenue'].values[0] == 200.0
     assert processed_df.loc[processed_df['seller_id'] == 3, 'revenue'].values[0] == 30.0
 
-    # 4. Validate column dropping and datetime parsing
     assert 'date' not in processed_df.columns
     assert 'time' not in processed_df.columns
     assert 'datetime' in processed_df.columns
@@ -100,25 +91,20 @@ def test_load_data_raises_value_error_on_empty_df(tmp_path):
     
     pd.DataFrame().to_parquet(fake_empty_parquet)
 
-    # Assert that loading an empty file raises the expected ValueError
     with pytest.raises(ValueError, match="DataFrame is empty. No data to load into PostgreSQL."):
         load_data(input_path=str(fake_empty_parquet), db_conn="sqlite:///:memory:")
 
 
-@patch('airflow.dags.etl_dag.create_engine')
+@patch('pipeline.tasks.create_engine')
 @patch('pandas.DataFrame.to_sql')
 def test_load_data_triggers_db_loading(mock_to_sql, mock_create_engine, mock_raw_json_data, tmp_path):
     """Validates that load_data instantiates a SQLAlchemy engine and invokes the to_sql load mechanism."""
     fake_parquet_file = tmp_path / "data.parquet"
     
-    # Cast raw mock data explicitly to DAG schema to ensure typings are identical to production
     df_with_schema = pd.DataFrame(mock_raw_json_data).astype(schema)
-    
-    # Save the valid parquet file to sandbox disk
     df_with_schema.to_parquet(fake_parquet_file)
 
     load_data(input_path=str(fake_parquet_file), db_conn="postgresql+psycopg2://admin:admin@postgres:5432/pipeline_db")
 
-    # Assert loading engines are configured
     mock_create_engine.assert_called_once_with("postgresql+psycopg2://admin:admin@postgres:5432/pipeline_db")
     mock_to_sql.assert_called_once()
