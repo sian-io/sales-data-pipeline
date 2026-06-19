@@ -1,0 +1,73 @@
+name: Sales Data Pipeline CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Step 1: Unit testing and code logic validation
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest fastapi httpx2 pandas pyarrow
+      
+      - name: Run Pytest
+        run: |
+          # Running as a module adds the root directory to PYTHONPATH automatically
+          python -m pytest -v
+
+  # Step 2: Infrastructure E2E / Container Integration Tests
+  infra-integration:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Containers
+        run: docker compose up -d --build
+    
+      - name: Wait for PostgreSQL Healthcheck
+        run: |
+          echo "Waiting for PostgreSQL database health status..."
+          for i in {1..20}; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' postgres)
+            if [ "$STATUS" == "healthy" ]; then
+              echo "PostgreSQL database is ready and accepting connections!"
+              break
+            fi
+            echo "Current database status: $STATUS. Retrying..."
+            sleep 3
+          done
+        
+      - name: Check Container Statuses
+        run: |
+          docker compose ps
+
+          # Validate if application containers are active and stable
+          API_STATUS=$(docker inspect --format='{{.State.Running}}' api)
+          AIRFLOW_STATUS=$(docker inspect --format='{{.State.Running}}' airflow)
+
+          if [ "$API_STATUS" != "true" ] || [ "$AIRFLOW_STATUS" != "true" ]; then
+            echo "Critical Error: One or more containers crashed after booting."
+            docker compose logs
+            exit 1
+          fi
+          echo "All services are up, healthy, and stable!"
+      
+      - name: Shutdown Containers
+        if: always()
+        run: docker compose down -v
