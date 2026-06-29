@@ -30,6 +30,9 @@ All components are orchestrated using Docker Compose, which automatically builds
 ## Project Structure
 
 ```
+├── .github
+│   └── workflows
+│       └── ci.yaml
 ├── airflow
 │   ├── dags
 │   │   └── etl_dag.py
@@ -157,6 +160,22 @@ To run the tests locally, you need a Python environment with the required depend
    - Employs unit tests with mock structures (`unittest.mock`) to mock external HTTP calls and database engine instantiations.
    - Validates pandas vector operations in data transformation steps.
    - Asserts defensive behaviors such as raising logical value errors on empty DataFrame processing attempts.
+
+## Continuous Integration (CI)
+
+To ensure code quality and system health on every push or pull request targeted at the `main` branch, a GitHub Actions pipeline is configured in `.github/workflows/ci.yaml`, along with a ruleset in the repo to require GitGuardian and CI jobs' status checks to pass before a pull request is approved.
+
+The CI pipeline is split into two sequential steps:
+
+1. Unit Tests:
+   - Spins up a clean `ubuntu-latest` container running Python 3.11.
+   - Installs all dependencies and runs the `pytest` suite.
+2. Container E2E Integration Tests:
+   - Triggered only upon a successful run of the unit tests.
+   - Launches the entire application stack using Docker Compose.
+   - Executes a heath-polling loop on the `postgres` container, testing connectivity for up to 60 seconds.
+   - Performs automated assertions checking if the `api` and `airflow` services started correctly and didn't crash post-boot.
+   - Tear down all assets and persistent volumes to clean up the runner safely.
 
 ## Customization
 
