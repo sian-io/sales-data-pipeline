@@ -30,15 +30,28 @@ All components are orchestrated using Docker Compose, which automatically builds
 ## Project Structure
 
 ```
+├── .github
+│   └── workflows
+│       └── ci.yaml
 ├── airflow
 │   ├── dags
 │   │   └── etl_dag.py
-│   └── Dockerfile
+│   ├── Dockerfile
+│   └── requirements.txt
 ├── api
 │   ├── Dockerfile
-│   └── main.py
+│   ├── main.py
+│   └── requirements.txt
 ├── db_init
 │   └── init.sql
+├── pipeline
+│   ├── __init__.py
+│   └── tasks.py
+├── tests
+│   ├── __init__.py
+│   ├── test_api.py
+│   └── test_etl.py
+├── .gitignore
 ├── docker-compose.yaml
 ├── LICENSE
 └── README.md
@@ -51,13 +64,13 @@ All components are orchestrated using Docker Compose, which automatically builds
 
 ## Quick Start
 
-1. **Clone the repository**
+1. **Clone the repository and go inside it**
    ```sh
    git clone https://github.com/sian-io/sales-data-pipeline.git
+   cd sales-data-pipeline
    ```
 
 2. **Start the pipeline**
-   (run in the project root):
    ```sh
    docker compose up
    ```
@@ -76,9 +89,9 @@ All components are orchestrated using Docker Compose, which automatically builds
 - **Resetting the password:**
    - To reset the Airflow admin password, you can remove the persistent Docker volumes and restart the pipeline. This will recreate the Airflow metadata and generate a new password.
    - Run the following command in your project root:
-   ```sh
-   docker compose down -v
-   ```
+      ```sh
+      docker compose down -v
+      ```
    - This will delete all persistent data (including Airflow and PostgreSQL data).
    - Now rebuild the containers to restore the environment:
       ```sh
@@ -110,7 +123,59 @@ The table `treated.sales` is created automatically and has the following columns
 - `revenue` (NUMERIC)
 - `datetime` (TIMESTAMP)
 
-**Note:** Airflow's internal metadata tables are stored in the `public` schema of the PostgreSQL database. Your processed sales data is stored separately in the `treated` schema.
+**Note:** Airflow's internal metadata tables are stored in the `public` schema of the PostgreSQL database. The processed sales data is stored separately in the `treated` schema.
+
+## Testing
+
+This project includes a comprehensive testing suite powered by `pytest` to validate both the data simulation API and the core ETL transformation logic.
+
+### Running Tests Locally
+
+To run the tests locally, you need a Python environment with the required dependencies installed:
+
+1. Set up a virtual environment (optional but recommended):
+   ```sh
+   python -m venv venv
+   source venv/bin/activate # on windows: venv\Scripts\activate
+   ```
+
+2. Install testing and package dependencies:
+   ```sh
+   pip install pytest fastapi httpx2 pandas pyarrow sqlalchemy requests psycop2-binary
+   ```
+
+3. Run the test suite:
+   ```sh
+   python -m pytest
+   ```
+
+### Test Coverage Details
+
+- API Unit & Integration Tests (`tests/test_api.py`):
+   - Validates that the randomized daily time window calculations are correct.
+   - Asserts that single generated records contain correct schema fields, data types, and allowed values.
+   - Tests endpoint query overrides using a FastAPI `TestClient`.
+
+- ETL Pipeline Tests (`tests/test_etl.py`):
+   - Employs unit tests with mock structures (`unittest.mock`) to mock external HTTP calls and database engine instantiations.
+   - Validates pandas vector operations in data transformation steps.
+   - Asserts defensive behaviors such as raising logical value errors on empty DataFrame processing attempts.
+
+## Continuous Integration (CI)
+
+To ensure code quality and system health on every push or pull request targeted at the `main` branch, a GitHub Actions pipeline is configured in `.github/workflows/ci.yaml`, along with a ruleset in the repo to require GitGuardian and CI jobs' status checks to pass before a pull request is approved.
+
+The CI pipeline is split into two sequential steps:
+
+1. Unit Tests:
+   - Spins up a clean `ubuntu-latest` container running Python 3.11.
+   - Installs all dependencies and runs the `pytest` suite.
+2. Container E2E Integration Tests:
+   - Triggered only upon a successful run of the unit tests.
+   - Launches the entire application stack using Docker Compose.
+   - Executes a heath-polling loop on the `postgres` container, testing connectivity for up to 60 seconds.
+   - Performs automated assertions checking if the `api` and `airflow` services started correctly and didn't crash post-boot.
+   - Tear down all assets and persistent volumes to clean up the runner safely.
 
 ## Customization
 
